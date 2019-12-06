@@ -2,6 +2,7 @@ import itertools
 from itertools import product
 import math
 from numba import cuda
+import numpy as np
 
 @cuda.jit
 def decide(test_dataC, testCX):
@@ -40,11 +41,16 @@ def parallelCuda(test_dataC, test_dataP, testCX, testPX):
 
     dataCX = []
     dataPX = []
-    for combinations in itertools.combinations(testCX,3) :
+    for combinations in itertools.combinations(testCX, 3) :
         dataCX.append([combinations])
-    for combinations in itertools.combinations(testPX,3) :
+    for combinations in itertools.combinations(testPX, 3) :
         dataPX.append([combinations])
-    C_count = decide[blocks_per_grid, threads_per_block](test_dataC,dataCX)
-    P_count = decide[blocks_per_grid, threads_per_block](test_dataP,dataPX)
+    dataCX = np.array(dataCX)
+    dataPX = np.array(dataPX)
+    print(test_dataC.values)
+
+    
+    C_count = decide[blocks_per_grid, threads_per_block](test_dataC.values, dataCX)
+    P_count = decide[blocks_per_grid, threads_per_block](test_dataP.values, dataPX)
 
     return C_count, P_count
