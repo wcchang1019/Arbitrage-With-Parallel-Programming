@@ -36,17 +36,17 @@ if __name__ == '__main__':
         data, unique_time = readCsv(file)
         for t in unique_time:
             unique_time, test_dataC, test_dataP, testCX, testPX = selectData(data, t)
-            C_count, P_count = serial(test_dataC, test_dataP, testCX, testPX)
-            total_C += C_count
-            total_P += P_count
+            # C_count, P_count = serial(test_dataC, test_dataP, testCX, testPX)
+            # total_C += C_count
+            # total_P += P_count
             # pthread_C_count = p.apply_async(decide, args = (test_dataC, testCX))
             # pthread_P_count = p.apply_async(decide, args = (test_dataP, testPX))
             # total_C += pthread_C_count.get()
             # total_P += pthread_P_count.get()
 
-            # cuda_C_count, cuda_P_count = parallelCuda(test_dataC, test_dataP, testCX, testPX)
-            # total_C += cuda_C_count
-            # total_P += cuda_P_count
+            cuda_C_count, cuda_P_count = parallelCuda(test_dataC, test_dataP, testCX, testPX)
+            total_C += cuda_C_count
+            total_P += cuda_P_count
 
             if count == 3000:
                 break
