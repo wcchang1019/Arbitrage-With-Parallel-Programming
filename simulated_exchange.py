@@ -1,6 +1,8 @@
 import pandas as pd
 import os
-from serial import serial
+from serial import serial, decide
+from parallel_cuda import parallelCuda
+import multiprocessing
 
 
 def readCsv(filename):
@@ -26,8 +28,31 @@ def selectData(data, unique_time):
 if __name__ == '__main__':
     all_data_file = os.listdir('TXO/')
     all_data_file.sort()
+    p = multiprocessing.Pool(2)
+    count = 0
+    total_C = 0
+    total_P = 0
     for file in all_data_file[:1]:
         data, unique_time = readCsv(file)
         for t in unique_time:
             unique_time, test_dataC, test_dataP, testCX, testPX = selectData(data, t)
-            serial(test_dataC, test_dataP, testCX, testPX)
+            # C_count, P_count = serial(test_dataC, test_dataP, testCX, testPX)
+            # total_C += C_count
+            # total_P += P_count
+            # pthread_C_count = p.apply_async(decide, args = (test_dataC, testCX))
+            # pthread_P_count = p.apply_async(decide, args = (test_dataP, testPX))
+            # total_C += pthread_C_count.get()
+            # total_P += pthread_P_count.get()
+
+            cuda_C_count, cuda_P_count = parallelCuda(test_dataC, test_dataP, testCX, testPX)
+            total_C += cuda_C_count
+            total_P += cuda_P_count
+
+            if count == 3000:
+                break
+            count += 1
+    p.close()
+    p.join()
+
+    print("pthread_C_count count is {}".format(total_C))
+    print("pthread_P_count count is {}".format(total_P))
