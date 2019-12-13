@@ -39,6 +39,7 @@ if __name__ == '__main__':
             # C_count, P_count = serial(test_dataC, test_dataP, testCX, testPX)
             # total_C += C_count
             # total_P += P_count
+            
             # pthread_C_count = p.apply_async(decide, args = (test_dataC, testCX))
             # pthread_P_count = p.apply_async(decide, args = (test_dataP, testPX))
             # total_C += pthread_C_count.get()
