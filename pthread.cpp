@@ -10,15 +10,12 @@
 using namespace std;
 
 
-int putCount=0, callCount=0;
-vector<int> timeIdx;
-vector<vector<string>> allData;
 
 typedef struct _thread_data_t {
     int begin;
     int end;
 } threadData;
-
+vector<string> allFileName;
 void ReadCsv(string fileName, vector<vector<string>>& allData, vector<int>& timeIdx)
 {
     //readfile
@@ -141,22 +138,31 @@ int ComputeArbitrage(vector<string> uniqueExercisePrice, vector<vector<string>> 
 void *worker(void *arg)
 {
     threadData data = *(threadData *)arg;
-    for(int i=data.begin; i<data.end; i++)
+    for(int xx=data.begin; xx<data.end; xx++)
     {
-        int begin;
-        if(i == 0) begin = timeIdx[i];
-        else begin = timeIdx[i]+1;
-        int end = timeIdx[i+1];
-        vector<vector<string>> nowCallPutData(allData.begin()+begin, allData.begin()+end+1);
-        vector<string> uniqueCallExercisePrice, uniquePutExercisePrice;
-        vector<vector<string>> nowCallData, nowPutData;
-        GetUniqueExercisePrice(nowCallPutData, "C", uniqueCallExercisePrice, nowCallData);
-        GetUniqueExercisePrice(nowCallPutData, "P", uniquePutExercisePrice, nowPutData);
-        int a, b;
-        a = ComputeArbitrage(uniqueCallExercisePrice, nowCallData);
-        b = ComputeArbitrage(uniquePutExercisePrice, nowPutData);
-        callCount += a;
-        putCount += b;
+        int putCount=0, callCount=0;
+        vector<int> timeIdx;
+        timeIdx.push_back(0);
+        vector<vector<string>> allData;
+        ReadCsv(allFileName[xx], allData, timeIdx);
+        for(int i=0; i<timeIdx.size()-1; i++)
+        {
+            int begin;
+            if(i == 0) begin = timeIdx[i];
+            else begin = timeIdx[i]+1;
+            int end = timeIdx[i+1];
+            vector<vector<string>> nowCallPutData(allData.begin()+begin, allData.begin()+end+1);
+            vector<string> uniqueCallExercisePrice, uniquePutExercisePrice;
+            vector<vector<string>> nowCallData, nowPutData;
+            GetUniqueExercisePrice(nowCallPutData, "C", uniqueCallExercisePrice, nowCallData);
+            GetUniqueExercisePrice(nowCallPutData, "P", uniquePutExercisePrice, nowPutData);
+            int a, b;
+            a = ComputeArbitrage(uniqueCallExercisePrice, nowCallData);
+            b = ComputeArbitrage(uniquePutExercisePrice, nowPutData);
+            callCount += a;
+            putCount += b;
+        }
+        cout << allFileName[xx] << ":" << callCount << "," << putCount << endl;
     }
 }
 
@@ -166,47 +172,34 @@ int main()
     //col1     col2        col3       col4       col5
     //履約價格  買賣權別    成交時間    成交價格    成交數量(BorS)
     int threadCount = 4;
-    timeIdx.push_back(0);
     DIR *dp;
     struct dirent *dirp;
     string dirname = "cpp_data";
     dp = opendir(dirname.c_str());
-
     while((dirp = readdir(dp)) != NULL)
     {
         if(strcmp(dirp->d_name, "..") && strcmp(dirp->d_name, "."))
         { 
-            string filename;
-            filename = dirname + '/' + string(dirp->d_name);
-            cout << filename << endl;
-            ReadCsv(filename, allData, timeIdx);
-            int divideCount;
-            divideCount = timeIdx.size()/threadCount;
-            pthread_t threadArr[threadCount];
-            threadData thData[threadCount];
-            for(int x=0; x<threadCount; x++)
-            {
-                if(x == threadCount-1)
-                {
-                    thData[x].begin = x*divideCount;
-                    thData[x].end = timeIdx.size()-1;
-                }else
-                {
-                    thData[x].begin = x*divideCount;
-                    thData[x].end = (x+1)*divideCount;
-                }
-                pthread_create(&threadArr[x], NULL, worker, (void *)&thData[x]);
-            }
-            for(int i=0; i<threadCount; i++) {
-                pthread_join(threadArr[i], NULL);
-            }
-            cout << callCount << " " << putCount << endl;
+            allFileName.push_back(dirname + '/' + string(dirp->d_name));
         }
-        allData.clear();
-        timeIdx.clear(); 
-        timeIdx.push_back(0);
-        callCount = 0;
-        putCount = 0;
+    }
+            
+    int divideCount;
+    divideCount = allFileName.size()/threadCount;
+    pthread_t threadArr[threadCount];
+    threadData thData[threadCount];
+    for(int x=0; x<threadCount; x++)
+    {
+        int end;
+        if(x == threadCount-1) thData[x].end = allFileName.size();
+        else thData[x].end = (x+1)*divideCount;
+        thData[x].begin = x*divideCount;
+        //vector<string> tmp(allFileName.begin()+(x*divideCount), allFileName.begin()+end);
+        //thData.fileName = tmp;
+        pthread_create(&threadArr[x], NULL, worker, (void *)&thData[x]);
+    }
+    for(int i=0; i<threadCount; i++) {
+        pthread_join(threadArr[i], NULL);
     }
     return 0;
 }

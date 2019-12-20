@@ -143,7 +143,7 @@ int main()
         { 
             string filename;
             filename = dirname + '/' + string(dirp->d_name);
-            cout << filename << endl; 
+            cout << filename << ":"; 
             ReadCsv(filename, allData, timeIdx);
             int begin = 0;
             //while(begin < allData.size())
@@ -170,7 +170,7 @@ int main()
             cout << callCount << " " << putCount << endl;
         }
         allData.clear();
-        timeIdx.clear();     
+        timeIdx.clear();
     }
     return 0;
 }
