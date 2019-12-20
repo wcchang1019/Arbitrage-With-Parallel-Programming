@@ -4,7 +4,7 @@ import os
 
 if __name__ == '__main__':
     all_data_file = os.listdir('data/')
-    for file in all_data_file:
+    for file in all_data_file[:1]:
         df = pd.read_csv('data/' + file, encoding='big5')
         name = []
         for x in list(df):
@@ -26,5 +26,8 @@ if __name__ == '__main__':
                 break
         df = df[df['到期月份(週別)'] == target_contract]
         df['買賣權別'] = [x.replace(' ', '') for x in df['買賣權別']]
+        df['成交時間'] = df['成交時間'].astype(int)
+        df = df.sort_values(['成交時間', '買賣權別', '履約價格'])
+        df = df.loc[:, ['履約價格', '買賣權別', '成交時間', '成交價格', '成交數量(BorS)']]
         if len(df) > 0:
-            df.to_csv('TXO/' + file[-14:-4] + '.csv', index=False, encoding='big5')
+            df.to_csv('cpp_data/' + file[-14:-4] + '.csv', index=False, encoding='big5', header=False)
