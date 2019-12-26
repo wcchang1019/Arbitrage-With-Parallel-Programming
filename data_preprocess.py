@@ -4,7 +4,7 @@ import os
 
 if __name__ == '__main__':
     all_data_file = os.listdir('data/')
-    for file in all_data_file[:30]:
+    for file in all_data_file:
         df = pd.read_csv('data/' + file, encoding='big5')
         name = []
         for x in list(df):

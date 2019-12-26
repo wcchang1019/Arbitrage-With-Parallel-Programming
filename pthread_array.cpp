@@ -6,23 +6,27 @@
 #include <algorithm>
 #include <dirent.h>
 #include <string.h>
-#include <stdlib.h>
+#include <pthread.h>
+
 using namespace std;
 #define MAXROWCOUNT 1000000
-float* allData;
-int* timeIdx;
-int rowCount=0, timeCount=1;
+
+typedef struct _thread_data_t {
+    int begin;
+    int end;
+} threadData;
+
+vector<string> allFileName;
 
 
-void ReadCsv(string fileName)
+
+void ReadCsv(string fileName, float* allData, int* timeIdx, int* rowCount, int* timeCount)
 {
-    allData = new float[MAXROWCOUNT*5];
-    timeIdx = new int[MAXROWCOUNT];
     timeIdx[0] = 0;
     fstream file;
     file.open(fileName);
-    rowCount=0;
-    timeCount=1;
+    *rowCount=0;
+    *timeCount=1;
     string line;
     string timeStart = "84500";
     while (getline(file, line, '\n'))
@@ -34,22 +38,22 @@ void ReadCsv(string fileName)
         {
             if(checkTime == 2 && data != timeStart)
             {
-                timeIdx[timeCount] = rowCount-1;
+                timeIdx[(*timeCount)] = (*rowCount)-1;
                 timeStart = data;
-                timeCount++;
+                (*timeCount)++;
             }
             if(checkTime == 1)
             {
-                if(data == "C") allData[rowCount*5+checkTime] = 1.0;
-                if(data == "P") allData[rowCount*5+checkTime] = -1.0;
+                if(data == "C") allData[(*rowCount)*5+checkTime] = 1.0;
+                if(data == "P") allData[(*rowCount)*5+checkTime] = -1.0;
             }
             else
             {
-                allData[rowCount*5+checkTime] = atof(data.c_str());
+                allData[(*rowCount)*5+checkTime] = atof(data.c_str());
             }
             checkTime++;
         }
-        rowCount++;
+        (*rowCount)++;
     }
     file.close();
 }
@@ -87,27 +91,6 @@ int* GetUniqueExercisePrice(float* allData, int begin, int end, float cpType, fl
     return ans;
 }
 
-/*
-int Combination(int N, int K, int* ans)
-{
-    int count=0;
-    string bitmask(K, 1); // K leading 1's
-    bitmask.resize(N, 0); // N-K trailing 0's
-    do {
-        for (int i = 0; i < N; ++i) // [0..N-1] integers
-        {
-            if (bitmask[i]) 
-            {
-                ans[count] = i;
-                count++;
-            }
-        }
-    } while (prev_permutation(bitmask.begin(), bitmask.end()));
-    return count/3;
-}
-*/
-
-
 void Combination(int *arr, int *data, int start, int end, int index, int r, int *ans) 
 { 
     // Current combination is ready to be printed, print it 
@@ -116,7 +99,8 @@ void Combination(int *arr, int *data, int start, int end, int index, int r, int 
         for (int j=0; j<r; j++) {
             ans[ans[99999]*r+j] = data[j];
         }
-        ans[99999]++; 
+        ans[99999]++;
+        //cout << ans[99999] << " ";
         return; 
     } 
     for (int i=start; i<=end && end-i+1 >= r-index; i++) 
@@ -149,6 +133,7 @@ int ComputeArbitrage(float* uniqueExercisePrice, float* nowData, int* size)
     int ans = 0;
     if(size[0] >= 3)
     {
+        //cout << "ENTER IF SIZE[0]:" << size[0] << endl;
         int* allCombination;
         int combinationCount;
         allCombination = new int[100000];
@@ -158,12 +143,14 @@ int ComputeArbitrage(float* uniqueExercisePrice, float* nowData, int* size)
         arr = new int[100000];
         for(int i=0;i<size[0];i++) arr[i] = i;
         Combination(arr, data, 0, size[0]-1, 0, 3, allCombination);
+        //cout << "Combination:" << allCombination[99999] << endl;
         delete[] data;
         delete[] arr;
         //cout << size[0] << endl;
         //cout << combinationCount << endl;
         for(int x=0; x<allCombination[99999]; x++)
         {
+            //cout << "enter for" << endl;
             float* exercisePrice;
             exercisePrice = new float[3];
             int* dataIdx1;
@@ -173,9 +160,11 @@ int ComputeArbitrage(float* uniqueExercisePrice, float* nowData, int* size)
             dataIdx1 = new int[1000];
             dataIdx2 = new int[1000];
             dataIdx3 = new int[1000];
+            //printf("TESTETSETST");
             exercisePrice[0] = uniqueExercisePrice[allCombination[x*3+0]];
             exercisePrice[1] = uniqueExercisePrice[allCombination[x*3+1]];
             exercisePrice[2] = uniqueExercisePrice[allCombination[x*3+2]];
+            //cout << "x:" << x << "," << "size:" << allCombination[99999] << ",";
             for(int i=0; i<size[1]; i++)
             {
                 if(nowData[i*5+0] == exercisePrice[0]) 
@@ -235,6 +224,57 @@ int ComputeArbitrage(float* uniqueExercisePrice, float* nowData, int* size)
     return ans;
 }
 
+
+void *worker(void *arg)
+{
+    threadData data = *(threadData *)arg;
+    for(int xx=data.begin; xx<data.end; xx++)
+    {
+        float* allData;
+        int* timeIdx;
+        allData = new float[MAXROWCOUNT*5];
+        timeIdx = new int[MAXROWCOUNT];
+        int putCount=0, callCount=0;
+        int rowCount, timeCount;
+        ReadCsv(allFileName[xx], allData, timeIdx, &rowCount, &timeCount);
+        //cout << allFileName[xx] << ":" << rowCount << " " << timeCount  << endl;
+        for(int i=0; i<timeCount-1; i++)
+        {
+            //cout << allFileName[xx] << ":" << i << endl;
+            int begin;
+            if(i == 0) begin = timeIdx[i];
+            else begin = timeIdx[i]+1;
+            int end = timeIdx[i+1];
+            float *uniqueCallExercisePrice;
+            float *uniquePutExercisePrice;
+            float *nowCallData;
+            float *nowPutData;
+            uniqueCallExercisePrice = new float[1000];
+            uniquePutExercisePrice = new float[1000];
+            nowCallData = new float[10000*5];
+            nowPutData = new float[10000*5];
+            int *a;
+            int *b;
+            a = new int[2];
+            b = new int[2];
+            a = GetUniqueExercisePrice(allData, begin, end, 1.0, uniqueCallExercisePrice, nowCallData);
+            b = GetUniqueExercisePrice(allData, begin, end, -1.0, uniquePutExercisePrice, nowPutData);
+            //cout << begin << "->" << end << ":" << b[0] << " " << b[1] << endl;
+            callCount += ComputeArbitrage(uniqueCallExercisePrice, nowCallData, a);
+            putCount += ComputeArbitrage(uniquePutExercisePrice, nowPutData, b);
+            delete[] uniqueCallExercisePrice;
+            delete[] nowCallData;
+            delete[] uniquePutExercisePrice;
+            delete[] nowPutData;
+            delete[] a;
+            delete[] b;
+        }
+        delete[] allData;
+        delete[] timeIdx;
+
+        cout << allFileName[xx] << ":" << callCount << "," << putCount << endl;
+    }
+}
 int main(int argc, char *argv[])
 {
     //col1     col2        col3       col4       col5
@@ -243,55 +283,30 @@ int main(int argc, char *argv[])
     struct dirent *dirp;
     string dirname = "cpp_data";
     dp = opendir(dirname.c_str());
-    int putCount, callCount;
-    int fileCount = 0;
     while((dirp = readdir(dp)) != NULL)
     {
         if(strcmp(dirp->d_name, "..") && strcmp(dirp->d_name, "."))
         { 
-            string filename;
-            filename = dirname + '/' + string(dirp->d_name);
-            cout << filename << ":"; 
-            ReadCsv(filename);
-            putCount = 0;
-            callCount = 0;
-            for(int i=0; i<timeCount-1; i++)
-            {
-                int begin;
-                if(i == 0) begin = timeIdx[i];
-                else begin = timeIdx[i]+1;
-                int end = timeIdx[i+1];
-                
-                float *uniqueCallExercisePrice;
-                float *uniquePutExercisePrice;
-                float *nowCallData;
-                float *nowPutData;
-                uniqueCallExercisePrice = new float[1000];
-                uniquePutExercisePrice = new float[1000];
-                nowCallData = new float[10000*5];
-                nowPutData = new float[10000*5];
-                int *a;
-                int *b;
-                a = new int[2];
-                b = new int[2];
-                a = GetUniqueExercisePrice(allData, begin, end, 1.0, uniqueCallExercisePrice, nowCallData);
-                b = GetUniqueExercisePrice(allData, begin, end, -1.0, uniquePutExercisePrice, nowPutData);
-                //cout << begin << "->" << end << ":" << b[0] << " " << b[1] << endl;
-                callCount += ComputeArbitrage(uniqueCallExercisePrice, nowCallData, a);
-                putCount += ComputeArbitrage(uniquePutExercisePrice, nowPutData, b);
-                delete[] uniqueCallExercisePrice;
-                delete[] nowCallData;
-                delete[] uniquePutExercisePrice;
-                delete[] nowPutData;
-                delete[] a;
-                delete[] b;
-            }
-            cout << callCount << " " << putCount << endl;
-            fileCount++;
+            allFileName.push_back(dirname + '/' + string(dirp->d_name));
         }
-        delete[] allData;
-        delete[] timeIdx;
-        if(fileCount == atoi(argv[1])) break;
+        if(allFileName.size() == atoi(argv[1])) break;
     }
+    int threadCount = atoi(argv[2]);
+    int divideCount;
+    divideCount = allFileName.size()/threadCount;
+    pthread_t threadArr[threadCount];
+    threadData thData[threadCount];
+    for(int x=0; x<threadCount; x++)
+    {
+        int end;
+        if(x == threadCount-1) thData[x].end = allFileName.size();
+        else thData[x].end = (x+1)*divideCount;
+        thData[x].begin = x*divideCount;
+        pthread_create(&threadArr[x], NULL, worker, (void *)&thData[x]);
+    }
+    for(int i=0; i<threadCount; i++) {
+        pthread_join(threadArr[i], NULL);
+    }
+
     return 0;
 }
