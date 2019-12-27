@@ -148,7 +148,7 @@ int gcd(int a, int b)
 
 int ComputeArbitrage(float* uniqueExercisePrice, float* nowData, int* size)
 {
-    int ans = 0, _ans = 0;
+    int ans = 0;
     if(size[0] >= 3)
     {
         int* allCombination;
@@ -164,13 +164,17 @@ int ComputeArbitrage(float* uniqueExercisePrice, float* nowData, int* size)
         delete[] arr;
         
         int right,left,block;
-        block=allCombination[99999]/world_size;
+        block=(allCombination[99999]%world_size==0)?(allCombination[99999]/world_size):((allCombination[99999]/world_size)+1);
         left=world_rank*block;
         right=(world_rank+1)*block;
-        //cout << size[0] << endl;
-        //cout << combinationCount << endl;
+        // cout << size[0] << endl;
+        // cout << combinationCount << endl;
         for(int x=left; x<right; x++)
         {
+        	if(x>=allCombination[99999])
+        	{
+        		break;
+        	}
             float* exercisePrice;
             exercisePrice = new float[3];
             int* dataIdx1;
@@ -225,7 +229,7 @@ int ComputeArbitrage(float* uniqueExercisePrice, float* nowData, int* size)
                         }
                         if(tmp1*(nowData[dataIdx1[a]*5+3])+tmp2*(nowData[dataIdx3[c]*5+3])-tmp3*(nowData[dataIdx2[b]*5+3]) >= 20*(tmp1+tmp2+tmp3))
                         {
-                            _ans++;
+                            ans++;
                         }
                     }
                 }
@@ -235,24 +239,11 @@ int ComputeArbitrage(float* uniqueExercisePrice, float* nowData, int* size)
             delete [] dataIdx1;
             delete [] dataIdx2;
             delete [] dataIdx3;
-        }
+    	}
     }
     else
     {
         return 0;
-    }
-    if(world_rank==0)
-    {
-        ans += _ans;
-        for(int j=1;j<world_size;j++)
-        {
-            MPI_Recv(&_ans, 1, MPI_INT, j, j, MPI_COMM_WORLD, &status);
-            ans += _ans;
-        }
-    }
-    else 
-    {
-        MPI_Send(&_ans, 1, MPI_INT, 0, world_rank, MPI_COMM_WORLD);
     }
     return ans;
 }
@@ -261,28 +252,29 @@ int main(int argc, char *argv[])
 {
     //col1     col2        col3       col4       col5
     //履約價格  買賣權別    成交時間    成交價格    成交數量(BorS)
+    MPI_Init(&argc, &argv);    
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
     DIR *dp;
     struct dirent *dirp;
     string dirname = "cpp_data";
     dp = opendir(dirname.c_str());
-    int putCount, callCount;
-    int fileCount = 0;
-    MPI_Init(0, 0);
-    
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-    
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+    int _putCount, _callCount, putCount=0, callCount=0;
+    int fileCount = 0;    
     
     while((dirp = readdir(dp)) != NULL)
     {
         if(strcmp(dirp->d_name, "..") && strcmp(dirp->d_name, "."))
-        { 
+        {
             string filename;
             filename = dirname + '/' + string(dirp->d_name);
-            cout << filename << ":"; 
+            if(world_rank == 0)
+            {
+            	cout << filename << ":";
+            }             
             ReadCsv(filename);
-            putCount = 0;
-            callCount = 0;
+            _putCount = 0;
+            _callCount = 0;
             for(int i=0; i<timeCount-1; i++)
             {
                 int begin;
@@ -305,8 +297,8 @@ int main(int argc, char *argv[])
                 a = GetUniqueExercisePrice(allData, begin, end, 1.0, uniqueCallExercisePrice, nowCallData);
                 b = GetUniqueExercisePrice(allData, begin, end, -1.0, uniquePutExercisePrice, nowPutData);
                 //cout << begin << "->" << end << ":" << b[0] << " " << b[1] << endl;
-                callCount += ComputeArbitrage(uniqueCallExercisePrice, nowCallData, a);
-                putCount += ComputeArbitrage(uniquePutExercisePrice, nowPutData, b);
+                _callCount += ComputeArbitrage(uniqueCallExercisePrice, nowCallData, a);
+                _putCount += ComputeArbitrage(uniquePutExercisePrice, nowPutData, b);
                 delete[] uniqueCallExercisePrice;
                 delete[] nowCallData;
                 delete[] uniquePutExercisePrice;
@@ -314,12 +306,33 @@ int main(int argc, char *argv[])
                 delete[] a;
                 delete[] b;
             }
-            cout << callCount << " " << putCount << endl;
+            if(world_rank==0)
+    		{
+		        callCount += _callCount;
+		        putCount += _putCount;
+		        for(int j=1;j<world_size;j++)
+		        {
+		            MPI_Recv(&_callCount, 1, MPI_INT, j, j, MPI_COMM_WORLD, &status);
+		            MPI_Recv(&_putCount, 1, MPI_INT, j, j, MPI_COMM_WORLD, &status);
+		            callCount += _callCount;
+		            putCount += _putCount;
+		        }
+		        cout << callCount << " " << putCount << endl;
+		    }
+		    else 
+		    {
+		        MPI_Send(&_callCount, 1, MPI_INT, 0, world_rank, MPI_COMM_WORLD);
+		        MPI_Send(&_putCount, 1, MPI_INT, 0, world_rank, MPI_COMM_WORLD);
+		    }            
             fileCount++;
-        }
+            putCount=0; 
+        	callCount=0;
+        	MPI_Barrier(MPI_COMM_WORLD);
+        }        
         delete[] allData;
         delete[] timeIdx;
         if(fileCount == atoi(argv[1])) break;
     }
+    MPI_Finalize();
     return 0;
 }
