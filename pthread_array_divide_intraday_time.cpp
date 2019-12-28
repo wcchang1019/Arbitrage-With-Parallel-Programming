@@ -231,10 +231,11 @@ int ComputeArbitrage(float* uniqueExercisePrice, float* nowData, int* size)
                     }
                 }
             }
-            delete [] dataIdx1;
-            delete [] dataIdx2;
-            delete [] dataIdx3;
+            delete[] dataIdx1;
+            delete[] dataIdx2;
+            delete[] dataIdx3;
         }
+        delete[] allCombination;
     }
     else
     {

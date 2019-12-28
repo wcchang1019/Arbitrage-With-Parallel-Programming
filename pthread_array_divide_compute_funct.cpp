@@ -272,6 +272,7 @@ int ComputeArbitrage(float* uniqueExercisePrice, float* nowData, int* size, int 
                 pthread_join(threadArr[i], NULL);
             }
         }
+        delete[] allCombination;
         return ans;
     }
     else

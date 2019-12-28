@@ -228,6 +228,7 @@ int ComputeArbitrage(float* uniqueExercisePrice, float* nowData, int* size)
             delete [] dataIdx2;
             delete [] dataIdx3;
         }
+        delete[] allCombination;
     }
     else
     {
