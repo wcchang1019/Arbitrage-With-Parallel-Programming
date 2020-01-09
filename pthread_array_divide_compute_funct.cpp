@@ -1,3 +1,4 @@
+#include <time.h>
 #include <iostream>
 #include <string> 
 #include <fstream>
@@ -304,6 +305,7 @@ int main(int argc, char *argv[])
             ReadCsv(filename);
             putCount = 0;
             callCount = 0;
+            float xxx = 0, yyy = 0;
             for(int i=0; i<timeCount-1; i++)
             {
                 int begin;
@@ -323,11 +325,24 @@ int main(int argc, char *argv[])
                 int *b;
                 a = new int[2];
                 b = new int[2];
+                  time_t rawtime;
+                  struct tm * timeinfo;
+
+                  time ( &rawtime );
+                  timeinfo = localtime ( &rawtime );
+                  printf ( "The current date/time is: %s", asctime (timeinfo) );
                 a = GetUniqueExercisePrice(allData, begin, end, 1.0, uniqueCallExercisePrice, nowCallData);
                 b = GetUniqueExercisePrice(allData, begin, end, -1.0, uniquePutExercisePrice, nowPutData);
+                                  time ( &rawtime );
+                  timeinfo = localtime ( &rawtime );
+                  printf ( "The current date/time is: %s", asctime (timeinfo) );
                 //cout << begin << "->" << end << ":" << b[0] << " " << b[1] << endl;
                 callCount += ComputeArbitrage(uniqueCallExercisePrice, nowCallData, a, threadCount);
                 putCount += ComputeArbitrage(uniquePutExercisePrice, nowPutData, b, threadCount);
+                                  time ( &rawtime );
+                  timeinfo = localtime ( &rawtime );
+                  printf ( "The current date/time is: %s", asctime (timeinfo) );
+                yyy += float( clock () - begin_time ) /  CLOCKS_PER_SEC;
                 delete[] uniqueCallExercisePrice;
                 delete[] nowCallData;
                 delete[] uniquePutExercisePrice;
@@ -336,6 +351,7 @@ int main(int argc, char *argv[])
                 delete[] b;
             }
             cout << callCount << " " << putCount << endl;
+            cout << xxx << " " << yyy << endl;
             fileCount++;
         }
         delete[] allData;

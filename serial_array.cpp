@@ -256,6 +256,7 @@ int main(int argc, char *argv[])
             ReadCsv(filename);
             putCount = 0;
             callCount = 0;
+            float xxx = 0, yyy = 0;
             for(int i=0; i<timeCount-1; i++)
             {
                 int begin;
@@ -275,11 +276,16 @@ int main(int argc, char *argv[])
                 int *b;
                 a = new int[2];
                 b = new int[2];
+                clock_t begin_time = clock();
                 a = GetUniqueExercisePrice(allData, begin, end, 1.0, uniqueCallExercisePrice, nowCallData);
                 b = GetUniqueExercisePrice(allData, begin, end, -1.0, uniquePutExercisePrice, nowPutData);
                 //cout << begin << "->" << end << ":" << b[0] << " " << b[1] << endl;
+                xxx += float( clock () - begin_time ) /  CLOCKS_PER_SEC;
+                begin_time = clock();
                 callCount += ComputeArbitrage(uniqueCallExercisePrice, nowCallData, a);
                 putCount += ComputeArbitrage(uniquePutExercisePrice, nowPutData, b);
+                yyy += float( clock () - begin_time ) /  CLOCKS_PER_SEC;
+
                 delete[] uniqueCallExercisePrice;
                 delete[] nowCallData;
                 delete[] uniquePutExercisePrice;
@@ -288,6 +294,7 @@ int main(int argc, char *argv[])
                 delete[] b;
             }
             cout << callCount << " " << putCount << endl;
+            cout << xxx << " " << yyy << endl;
             fileCount++;
         }
         delete[] allData;

@@ -152,6 +152,7 @@ int main(int argc, char *argv[])
     string dirname = "cpp_data";
     dp = opendir(dirname.c_str());
     int putCount, callCount, _putCount, _callCount;
+    int fileCount=0;
     while((dirp = readdir(dp)) != NULL)
     {
         if(strcmp(dirp->d_name, "..") && strcmp(dirp->d_name, "."))
@@ -204,9 +205,11 @@ int main(int argc, char *argv[])
             putCount = 0;
             callCount = 0;          
         	MPI_Barrier(MPI_COMM_WORLD);
+            fileCount++;
         }
         allData.clear();
         timeIdx.clear();     
+        if(fileCount == atoi(argv[1])) break;
     }
     MPI_Finalize();
     return 0;
